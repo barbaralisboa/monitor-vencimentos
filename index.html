@@ -359,68 +359,6 @@ function updateAuthUI() {
   }
 }
 
-// ========== FIREBASE CONFIG ==========
-const firebaseConfig = {
-  apiKey: "AIzaSyC1TpF7YZKmDdP8tejfyoOfOMgex2oieHM",
-  authDomain: "prevencidos-be60f.firebaseapp.com",
-  projectId: "prevencidos-be60f",
-  storageBucket: "prevencidos-be60f.appspot.com",
-  messagingSenderId: "283640740918",
-  appId: "1:283640740918:web:ef19397e2870840e92ec97"
-};
-
-let db = null;
-let firebaseReady = false;
-
-function initFirebase() {
-  try {
-    const app = firebase.initializeApp(firebaseConfig);
-    db = firebase.database();
-    firebaseReady = true;
-    console.log('✓ Firebase inicializado');
-    
-    // Autenticação anônima
-    firebase.auth().signInAnonymously().catch(err => {
-      console.log('Auth anônima:', err);
-    });
-    
-    // Sincronizar dados do Firebase
-    syncFromFirebase();
-  } catch(e) {
-    console.error('Erro Firebase:', e);
-    firebaseReady = false;
-  }
-}
-
-function syncFromFirebase() {
-  if(!firebaseReady || !db) return;
-  
-  db.ref('medicamentos').on('value', (snapshot) => {
-    const firebaseData = snapshot.val();
-    if(firebaseData) {
-      data.meds = Array.isArray(firebaseData) ? firebaseData : Object.values(firebaseData);
-      console.log('✓ Sincronizado do Firebase');
-      buscar();
-    }
-  }, (error) => {
-    console.error('Erro sync:', error);
-  });
-}
-
-function saveToFirebase() {
-  if(!firebaseReady || !db) {
-    console.log('Firebase não pronto');
-    return;
-  }
-  
-  db.ref('medicamentos').set(data.meds, (error) => {
-    if(error) {
-      console.error('Erro ao salvar Firebase:', error);
-    } else {
-      console.log('✓ Salvo no Firebase');
-    }
-  });
-}
 
 function renderLista() {
   const cont = document.getElementById('lista-container');
