@@ -1,0 +1,826 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Monitor de Vencimentos — Drogaria Primus</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;1,400&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<!-- Firebase -->
+<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-database.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js"></script>
+<style>
+  :root {
+    --bg: #f5f4f0;
+    --surface: #ffffff;
+    --surface2: #f0efe9;
+    --border: #e2e0d8;
+    --border2: #cccabf;
+    --text: #1a1917;
+    --text2: #6b6960;
+    --text3: #9e9c93;
+    --accent: #1a1917;
+    --green-bg: #eaf3de; --green-text: #2d5c0e; --green-border: #b8dba0;
+    --yellow-bg: #faeeda; --yellow-text: #7a4500; --yellow-border: #f0c070;
+    --red-bg: #fcebeb;   --red-text: #8c2020;   --red-border: #f09595;
+    --orange-bg: #ffe5cc; --orange-text: #c66000; --orange-border: #ffb366;
+    --tag-green-bg: #d4f3d4; --tag-green-text: #1a5c1a; --tag-green-border: #90e090;
+    --radius: 10px;
+    --radius-sm: 6px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--text); font-size: 14px; line-height: 1.6; min-height: 100vh; }
+
+  .topbar { background: var(--surface); border-bottom: 1px solid var(--border); padding: 0 2rem; display: flex; align-items: center; justify-content: space-between; height: 56px; position: sticky; top: 0; z-index: 100; }
+  .logo { font-size: 15px; font-weight: 600; letter-spacing: -0.3px; }
+  .logo span { color: var(--text2); font-weight: 400; }
+  .topbar-right { font-size: 12px; color: var(--text3); font-family: 'DM Mono', monospace; }
+
+  .layout { display: flex; min-height: calc(100vh - 56px); }
+  .sidebar { width: 200px; background: var(--surface); border-right: 1px solid var(--border); padding: 1.5rem 1rem; flex-shrink: 0; }
+  .nav-item { display: flex; align-items: center; gap: 10px; padding: 8px 12px; border-radius: var(--radius-sm); font-size: 13px; cursor: pointer; color: var(--text2); margin-bottom: 2px; transition: all 0.15s; border: none; background: none; width: 100%; text-align: left; }
+  .nav-item:hover { background: var(--surface2); color: var(--text); }
+  .nav-item.active { background: var(--accent); color: #fff; }
+  .nav-icon { width: 16px; text-align: center; font-size: 14px; }
+  .nav-section { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; color: var(--text3); margin: 1rem 12px 6px; }
+
+  .main { flex: 1; padding: 2rem; max-width: 1000px; }
+  .page { display: none; }
+  .page.active { display: block; }
+
+  .page-header { margin-bottom: 1.5rem; }
+  .page-header h2 { font-size: 20px; font-weight: 600; letter-spacing: -0.3px; }
+  .page-header p { font-size: 13px; color: var(--text2); margin-top: 4px; }
+
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.25rem; margin-bottom: 1rem; }
+  .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
+  .card-title { font-size: 14px; font-weight: 600; }
+
+  .btn { padding: 8px 16px; border-radius: var(--radius-sm); font-size: 13px; font-weight: 500; cursor: pointer; border: 1px solid var(--border2); background: var(--surface); color: var(--text); transition: all 0.15s; font-family: 'DM Sans', sans-serif; }
+  .btn:hover { background: var(--surface2); }
+  .btn-primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .btn-primary:hover { opacity: 0.85; background: var(--accent); }
+  .btn-sm { padding: 5px 10px; font-size: 12px; }
+  .btn-danger { border-color: #f09595; color: var(--red-text); }
+  .btn-danger:hover { background: var(--red-bg); }
+
+  .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .form-grid-3 { display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 12px; }
+  .form-group { display: flex; flex-direction: column; gap: 4px; }
+  .form-group label { font-size: 12px; font-weight: 500; color: var(--text2); }
+  input, select, textarea { padding: 8px 10px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 13px; background: var(--surface); color: var(--text); font-family: 'DM Sans', sans-serif; outline: none; transition: border 0.15s; width: 100%; }
+  input:focus, select:focus { border-color: var(--border2); }
+  .form-actions { margin-top: 1rem; display: flex; gap: 8px; }
+
+  /* SEARCH */
+  .search-wrap { position: relative; margin-bottom: 1.5rem; }
+  .search-wrap input { padding: 12px 16px 12px 44px; font-size: 15px; border-radius: var(--radius); border: 1px solid var(--border2); background: var(--surface); width: 100%; }
+  .search-wrap input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(26,25,23,0.06); }
+  .search-icon { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); font-size: 18px; color: var(--text3); pointer-events: none; }
+  .search-hint { font-size: 12px; color: var(--text3); margin-top: 6px; }
+
+  /* RESULTS */
+  .results-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; }
+  .med-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem 1.25rem; border-left: 4px solid var(--border2); transition: box-shadow 0.15s; }
+  .med-card:hover { box-shadow: 0 2px 12px rgba(0,0,0,0.07); }
+  .med-card.status-red { border-left-color: #e05c5c; background: #fff9f9; }
+  .med-card.status-yellow { border-left-color: #e6a020; background: #fffbf5; }
+  .med-card.status-green { border-left-color: #5aaa2a; background: #f7fbf2; }
+  .med-name { font-weight: 600; font-size: 14px; margin-bottom: 2px; }
+  .med-sintomas { font-size: 11px; color: var(--text3); margin-bottom: 10px; }
+  .med-meta { display: flex; justify-content: space-between; align-items: flex-end; }
+  .med-lote { font-size: 11px; color: var(--text2); font-family: 'DM Mono', monospace; }
+  .med-dias { font-size: 12px; font-weight: 600; }
+  .med-dias.red { color: var(--red-text); }
+  .med-dias.yellow { color: var(--yellow-text); }
+  .med-dias.green { color: var(--green-text); }
+  .med-venc { font-size: 11px; color: var(--text3); font-family: 'DM Mono', monospace; margin-top: 2px; }
+
+  .tag-pill { display: inline-block; padding: 2px 7px; border-radius: 20px; font-size: 10px; font-weight: 500; margin-right: 3px; margin-bottom: 3px; background: var(--surface2); color: var(--text2); border: 1px solid var(--border); }
+
+  /* STAT GRID */
+  .stat-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 1.5rem; }
+  .stat { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem 1.25rem; }
+  .stat-label { font-size: 11px; color: var(--text3); font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
+  .stat-value { font-size: 26px; font-weight: 600; letter-spacing: -1px; line-height: 1; }
+  .stat-sub { font-size: 12px; color: var(--text2); margin-top: 4px; }
+
+  .empty { text-align: center; padding: 2.5rem; color: var(--text3); font-size: 13px; }
+  .empty-icon { font-size: 28px; margin-bottom: 8px; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th { text-align: left; font-size: 11px; font-weight: 600; color: var(--text3); text-transform: uppercase; letter-spacing: 0.5px; padding: 0 12px 10px; border-bottom: 1px solid var(--border); }
+  td { padding: 12px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: var(--surface2); }
+
+  .badge { display: inline-block; padding: 3px 8px; border-radius: 20px; font-size: 11px; font-weight: 500; }
+  .badge-red { background: var(--red-bg); color: var(--red-text); border: 1px solid var(--red-border); }
+  .badge-yellow { background: var(--yellow-bg); color: var(--yellow-text); border: 1px solid var(--yellow-border); }
+  .badge-green { background: var(--green-bg); color: var(--green-text); border: 1px solid var(--green-border); }
+  
+  .tag-bonificado { display: inline-block; padding: 4px 10px; border-radius: 20px; font-size: 10px; font-weight: 600; background: var(--orange-bg); color: var(--orange-text); border: 1px solid var(--orange-border); margin-right: 4px; margin-bottom: 4px; }
+  .tag-queima { display: inline-block; padding: 4px 10px; border-radius: 20px; font-size: 10px; font-weight: 600; background: var(--tag-green-bg); color: var(--tag-green-text); border: 1px solid var(--tag-green-border); margin-right: 4px; margin-bottom: 4px; }
+  
+  /* CATEGORIA TAGS */
+  .tag-medicamento { display: inline-block; padding: 4px 10px; border-radius: 20px; font-size: 10px; font-weight: 600; background: #1e3a8a; color: #ffffff; border: 1px solid #1e40af; margin-right: 4px; margin-bottom: 4px; }
+  .tag-perfumaria { display: inline-block; padding: 4px 10px; border-radius: 20px; font-size: 10px; font-weight: 600; background: #87ceeb; color: #003d6b; border: 1px solid #6bb6db; margin-right: 4px; margin-bottom: 4px; }
+  
+  /* CARD URGENCY LEVELS - 3 cores por vencimento */
+  .med-card.urgency-critical { background: #ffe6e6; border-left-color: #d1483f; }
+  .med-card.urgency-warning { background: #fff5e6; border-left-color: #e89f20; }
+  .med-card.urgency-normal { background: #e6f5e6; border-left-color: #4a9d2c; }
+
+  .alert-bar { background: var(--yellow-bg); border: 1px solid var(--yellow-border); border-radius: var(--radius-sm); padding: 10px 14px; font-size: 13px; color: var(--yellow-text); margin-bottom: 1rem; display: none; }
+
+  @keyframes slideIn { 
+    from { opacity: 0; transform: translateY(20px); } 
+    to { opacity: 1; transform: translateY(0); } 
+  }
+
+  /* LOGIN MODAL */
+  .modal-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center; }
+  .modal-overlay.active { display: flex; }
+  .modal-content { background: var(--surface); border-radius: var(--radius); padding: 2rem; max-width: 400px; width: 90%; box-shadow: 0 20px 60px rgba(0,0,0,0.3); }
+  .modal-title { font-size: 20px; font-weight: 600; margin-bottom: 8px; text-align: center; }
+  .modal-subtitle { font-size: 13px; color: var(--text2); margin-bottom: 1.5rem; text-align: center; }
+  .modal-input { width: 100%; padding: 12px 14px; border: 1px solid var(--border); border-radius: var(--radius-sm); font-size: 14px; margin-bottom: 1rem; font-family: 'DM Sans', sans-serif; }
+  .modal-input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(26,25,23,0.1); }
+  .modal-btn { width: 100%; padding: 12px; border: none; border-radius: var(--radius-sm); font-size: 14px; font-weight: 500; cursor: pointer; background: var(--accent); color: #fff; font-family: 'DM Sans', sans-serif; }
+  .modal-btn:hover { opacity: 0.9; }
+  .modal-error { color: var(--red-text); font-size: 12px; margin-bottom: 1rem; padding: 8px 10px; background: var(--red-bg); border: 1px solid var(--red-border); border-radius: var(--radius-sm); display: none; text-align: center; }
+  
+  .lock-badge { display: inline-flex; align-items: center; gap: 4px; background: var(--red-bg); color: var(--red-text); padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="logo">Drogaria Primus <span>/ Monitor de Vencimentos</span></div>
+  <div style="display:flex; align-items:center; gap:12px;">
+    <div id="auth-status" class="lock-badge" style="display:none;">🔒 Autenticado</div>
+    <button id="logout-btn" class="btn btn-sm" onclick="logout()" style="display:none;">Sair</button>
+    <div class="topbar-right" id="clock"></div>
+  </div>
+</div>
+
+<!-- MODAL LOGIN -->
+<div class="modal-overlay" id="login-modal">
+  <div class="modal-content">
+    <div class="modal-title">🔐 Acesso Restrito</div>
+    <div class="modal-subtitle">Digite a senha para editar medicamentos</div>
+    <div class="modal-error" id="login-error"></div>
+    <input type="password" id="login-password" class="modal-input" placeholder="Digite a senha..." autocomplete="off" onkeypress="if(event.key==='Enter') login()"/>
+    <button class="modal-btn" onclick="login()">Entrar</button>
+  </div>
+</div>
+
+<!-- MODAL VENDAS -->
+<div class="modal-overlay" id="vendas-modal">
+  <div class="modal-content">
+    <div class="modal-title">📊 Registrar Venda</div>
+    <div class="modal-subtitle" id="vendas-subtitle">Medicamento: Carregando...</div>
+    <div style="margin-bottom:1rem;">
+      <div style="font-size:13px; color:var(--text2); margin-bottom:8px;">
+        <strong>Estoque atual:</strong> <span id="vendas-estoque-atual">0</span> un.
+      </div>
+      <div class="form-group">
+        <label>Quantidade vendida</label>
+        <input type="number" id="vendas-qtd" min="1" placeholder="Ex: 2" style="font-size:16px;"/>
+      </div>
+    </div>
+    <div style="display:flex; gap:8px;">
+      <button class="modal-btn" onclick="confirmarVenda()" style="flex:1; background:var(--accent);">Confirmar venda</button>
+      <button class="modal-btn" onclick="cancelarVenda()" style="flex:1; background:var(--border2); color:var(--text);">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<div class="layout">
+  <nav class="sidebar">
+    <div class="nav-section">Painel</div>
+    <button class="nav-item active" onclick="goTo('consulta', this)"><span class="nav-icon">🔍</span> Consulta</button>
+    <div class="nav-section">Gerenciar</div>
+    <button class="nav-item" onclick="goTo('cadastro', this)"><span class="nav-icon">⊕</span> Cadastrar</button>
+    <button class="nav-item" onclick="goTo('lista', this)"><span class="nav-icon">☰</span> Todos</button>
+  </nav>
+
+  <main class="main">
+
+    <!-- CONSULTA -->
+    <div class="page active" id="page-consulta">
+      <div class="page-header">
+        <h2>🚨 MEDICAMENTOS E PRODUTOS COM VENCIMENTO PRÓXIMO 📣</h2>
+        <p>Digite o sintoma ou nome do medicamento para ver os que estão com vencimento próximo</p>
+      </div>
+
+      <div class="alert-bar" id="alert-bar-consulta"></div>
+
+      <div class="search-wrap">
+        <span class="search-icon">🔍</span>
+        <input type="text" id="search-input" placeholder="Ex: garganta inflamada, dor de cabeça, dipirona..." oninput="buscar()" autocomplete="off"/>
+        <div class="search-hint" id="search-hint">Digite para buscar — mostra apenas medicamentos com vencimento nos próximos 180 dias</div>
+      </div>
+
+      <div id="search-results"></div>
+    </div>
+
+    <!-- CADASTRO -->
+    <div class="page" id="page-cadastro">
+      <div class="page-header">
+        <h2>Cadastrar medicamento</h2>
+        <p>Adicione medicamentos com vencimento próximo para monitorar</p>
+      </div>
+      <div class="card">
+        <div class="form-grid-3">
+          <div class="form-group"><label>Nome do medicamento *</label><input id="c-nome" placeholder="Ex: Amoxicilina 500mg 21 cápsulas"/></div>
+          <div class="form-group"><label>Código (SKU)</label><input id="c-codigo" placeholder="Ex: SKU123456"/></div>
+          <div class="form-group">
+            <label>Categoria *</label>
+            <select id="c-categoria" style="width:100%;">
+              <option value="">Selecione...</option>
+              <option value="MEDICAMENTO">💊 MEDICAMENTO</option>
+              <option value="PERFUMARIA">🧴 PERFUMARIA</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-grid-3" style="margin-top:12px;">
+          <div class="form-group"><label>Lote</label><input id="c-lote" placeholder="Ex: L2024081"/></div>
+          <div class="form-group"><label>Vencimento *</label><input id="c-venc" type="date"/></div>
+          <div class="form-group"><label>Quantidade em estoque</label><input id="c-qtd" type="number" min="0" placeholder="Ex: 12"/></div>
+        </div>
+        <div class="form-grid" style="margin-top:12px; gap:20px;">
+          <div class="form-group" style="flex-direction:row; align-items:center; gap:8px;">
+            <input id="c-bonificado" type="checkbox" style="width:auto;"/>
+            <label style="margin:0;">Bonificado</label>
+          </div>
+          <div class="form-group" style="flex-direction:row; align-items:center; gap:8px;">
+            <input id="c-queima" type="checkbox" style="width:auto;"/>
+            <label style="margin:0;">Queima de Estoque</label>
+          </div>
+        </div>
+        <div class="form-group" style="margin-top:12px;">
+          <label>Sintomas / indicações (separe por vírgula) *</label>
+          <input id="c-sintomas" placeholder="Ex: garganta inflamada, infecção, febre, dor de ouvido"/>
+          <span style="font-size:11px;color:var(--text3);margin-top:3px;">Isso permite que o balconista encontre o medicamento ao digitar o sintoma do cliente</span>
+        </div>
+        <div class="form-actions">
+          <button class="btn btn-primary" onclick="cadastrar()" id="btn-cadastro">Cadastrar medicamento</button>
+          <button class="btn" onclick="cancelarEdicao()" id="btn-cancelar" style="display:none;">Cancelar edição</button>
+        </div>
+      </div>
+      <input type="hidden" id="c-id"/>
+      
+      <!-- BOTÕES DE BACKUP -->
+      <div class="card" style="margin-top:2rem;">
+        <div class="page-header">
+          <h3 style="font-size:16px;">💾 Backup de Dados</h3>
+          <p style="font-size:12px;">Exporte ou importe dados de medicamentos</p>
+        </div>
+        <div style="display:flex; gap:8px;">
+          <button class="btn btn-primary btn-sm" onclick="exportarDados()">📥 Exportar dados</button>
+          <button class="btn btn-primary btn-sm" onclick="importarDados()">📤 Importar dados</button>
+          <button class="btn btn-danger btn-sm" onclick="limparDados()" style="margin-left:auto;">🗑️ Limpar tudo</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- LISTA TODOS -->
+    <div class="page" id="page-lista">
+      <div class="page-header">
+        <h2>Todos os medicamentos</h2>
+        <p>Remova medicamentos vendidos da lista</p>
+      </div>
+
+      <div class="card">
+        <div id="lista-container"><div class="empty"><div class="empty-icon">💊</div>Nenhum medicamento cadastrado ainda.</div></div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<script>
+let data = { meds: [] };
+let authenticated = false;
+const SENHA_PADRAO = '1234'; // ALTERADA PARA SUA SENHA
+
+function isAuthenticated() {
+  return authenticated;
+}
+
+function showLoginModal() {
+  document.getElementById('login-modal').classList.add('active');
+  document.getElementById('login-password').focus();
+  document.getElementById('login-error').style.display = 'none';
+  document.getElementById('login-password').value = '';
+}
+
+function hideLoginModal() {
+  document.getElementById('login-modal').classList.remove('active');
+}
+
+function login() {
+  const senha = document.getElementById('login-password').value;
+  const errorDiv = document.getElementById('login-error');
+  
+  if(senha === SENHA_PADRAO) {
+    authenticated = true;
+    localStorage.setItem('primus-auth', 'true');
+    hideLoginModal();
+    updateAuthUI();
+    
+    // Redirecionar para cadastro se veio do botão
+    if(sessionStorage.getItem('redirectToCadastro')) {
+      sessionStorage.removeItem('redirectToCadastro');
+      goTo('cadastro', document.querySelector('[onclick*="cadastro"]'));
+    }
+  } else {
+    errorDiv.textContent = '❌ Senha incorreta!';
+    errorDiv.style.display = 'block';
+    document.getElementById('login-password').value = '';
+  }
+}
+
+function logout() {
+  authenticated = false;
+  localStorage.removeItem('primus-auth');
+  updateAuthUI();
+  goTo('consulta', document.querySelector('.nav-item'));
+  alert('Você foi desconectado.');
+}
+
+function updateAuthUI() {
+  const authStatus = document.getElementById('auth-status');
+  const logoutBtn = document.getElementById('logout-btn');
+  
+  if(authenticated) {
+    authStatus.style.display = 'inline-flex';
+    logoutBtn.style.display = 'block';
+  } else {
+    authStatus.style.display = 'none';
+    logoutBtn.style.display = 'none';
+  }
+}
+
+// ========== FIREBASE CONFIG ==========
+const firebaseConfig = {
+  apiKey: "AIzaSyC1TpF7YZKmDdP8tejfyoOfOMgex2oieHM",
+  authDomain: "prevencidos-be60f.firebaseapp.com",
+  projectId: "prevencidos-be60f",
+  storageBucket: "prevencidos-be60f.appspot.com",
+  messagingSenderId: "283640740918",
+  appId: "1:283640740918:web:ef19397e2870840e92ec97"
+};
+
+let db = null;
+let firebaseReady = false;
+
+function initFirebase() {
+  try {
+    const app = firebase.initializeApp(firebaseConfig);
+    db = firebase.database();
+    firebaseReady = true;
+    console.log('✓ Firebase inicializado');
+    
+    // Autenticação anônima
+    firebase.auth().signInAnonymously().catch(err => {
+      console.log('Auth anônima:', err);
+    });
+    
+    // Sincronizar dados do Firebase
+    syncFromFirebase();
+  } catch(e) {
+    console.error('Erro Firebase:', e);
+    firebaseReady = false;
+  }
+}
+
+function syncFromFirebase() {
+  if(!firebaseReady || !db) return;
+  
+  db.ref('medicamentos').on('value', (snapshot) => {
+    const firebaseData = snapshot.val();
+    if(firebaseData) {
+      data.meds = Array.isArray(firebaseData) ? firebaseData : Object.values(firebaseData);
+      console.log('✓ Sincronizado do Firebase');
+      buscar();
+    }
+  }, (error) => {
+    console.error('Erro sync:', error);
+  });
+}
+
+function saveToFirebase() {
+  if(!firebaseReady || !db) {
+    console.log('Firebase não pronto');
+    return;
+  }
+  
+  db.ref('medicamentos').set(data.meds, (error) => {
+    if(error) {
+      console.error('Erro ao salvar Firebase:', error);
+    } else {
+      console.log('✓ Salvo no Firebase');
+    }
+  });
+}
+
+function renderLista() {
+  const cont = document.getElementById('lista-container');
+  const total = data.meds.length;
+  
+  if(!total) { 
+    cont.innerHTML = '<div class="empty"><div class="empty-icon">💊</div>Nenhum medicamento cadastrado.</div>'; 
+    return; 
+  }
+
+  const sorted = [...data.meds].sort((a,b) => diasParaVencer(a.venc) - diasParaVencer(b.venc));
+  cont.innerHTML = `<table>
+    <thead><tr><th>Medicamento</th><th>Categoria</th><th>Código</th><th>Lote</th><th>Vencimento</th><th>Estoque</th><th>Status</th><th></th></tr></thead>
+    <tbody>${sorted.map(m => {
+      const dias = diasParaVencer(m.venc);
+      const status = statusDias(dias);
+      const badgeClass = status === 'red' ? 'badge-red' : status === 'yellow' ? 'badge-yellow' : 'badge-green';
+      const statusTags = `${m.bonificado ? '<span class="tag-bonificado">BONIFICADO</span> ' : ''}${m.queima ? '<span class="tag-queima">QUEIMA</span>' : ''}`;
+      const catTag = m.categoria ? `<span class="tag-${m.categoria.toLowerCase()}">${m.categoria}</span>` : '—';
+      return `<tr>
+        <td><strong>${m.nome}</strong>${statusTags?`<br><span style="font-size:11px;margin-top:4px;display:inline-block;">${statusTags}</span>`:''}</td>
+        <td>${catTag}</td>
+        <td style="font-family:'DM Mono',monospace;font-size:12px;">${m.codigo||'—'}</td>
+        <td style="font-family:'DM Mono',monospace;font-size:12px;">${m.lote||'—'}</td>
+        <td style="font-family:'DM Mono',monospace;font-size:12px;">${formatDate(m.venc)}</td>
+        <td><strong>${m.qtd ? m.qtd + ' un.' : '—'}</strong></td>
+        <td><span class="badge ${badgeClass}">${labelDias(dias)}</span></td>
+        <td><button class="btn btn-sm btn-danger" onclick="remover(${m.id})" title="Remover">🗑️ Remover</button></td>
+      </tr>`;
+    }).join('')}</tbody>
+  </table>`;
+}
+}
+
+function load() {
+  try { data = JSON.parse(localStorage.getItem('primus-vencimentos') || 'null') || { meds: [] }; }
+  catch(e) { data = { meds: [] }; }
+  if(!data.meds) data.meds = [];
+  
+  // Verificar se estava autenticado
+  if(localStorage.getItem('primus-auth') === 'true') {
+    authenticated = true;
+    updateAuthUI();
+  }
+  
+  // Inicializar Firebase
+  initFirebase();
+}
+
+function save() { 
+  try {
+    localStorage.setItem('primus-vencimentos', JSON.stringify(data));
+    saveToFirebase(); // Sincronizar com Firebase
+    showSaveIndicator();
+  } catch(e) {
+    console.error('Erro ao salvar:', e);
+    alert('⚠️ Erro ao salvar dados. Verifique conexão.');
+  }
+}
+
+function showSaveIndicator() {
+  const indicator = document.createElement('div');
+  indicator.style.cssText = 'position:fixed;bottom:20px;right:20px;background:#2d5c0e;color:#fff;padding:10px 16px;border-radius:8px;font-size:12px;font-weight:500;z-index:1000;animation:slideIn 0.3s ease-out;';
+  indicator.textContent = '✓ Dados salvos localmente';
+  document.body.appendChild(indicator);
+  setTimeout(() => indicator.remove(), 2000);
+}
+
+const style = document.createElement('style');
+style.textContent = '@keyframes slideIn { from { opacity:0; transform:translateY(20px); } to { opacity:1; transform:translateY(0); } }';
+document.head.appendChild(style);
+
+function goTo(page, btn) {
+  // Verificar se precisa autenticação para acessar cadastro
+  if(page === 'cadastro' && !isAuthenticated()) {
+    showLoginModal();
+    return;
+  }
+  
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('page-' + page).classList.add('active');
+  if(btn) btn.classList.add('active');
+  if(page === 'consulta') buscar();
+  if(page === 'lista') renderLista();
+}
+
+function diasParaVencer(dataVenc) {
+  const hoje = new Date(); hoje.setHours(0,0,0,0);
+  const venc = new Date(dataVenc + 'T00:00:00');
+  return Math.round((venc - hoje) / (1000 * 60 * 60 * 24));
+}
+
+function statusDias(dias) {
+  if(dias < 0) return 'vencido';
+  if(dias <= 60) return 'red';
+  if(dias <= 180) return 'yellow';
+  return 'green';
+}
+
+function labelDias(dias) {
+  if(dias < 0) return `Vencido há ${Math.abs(dias)} dia(s)`;
+  if(dias === 0) return 'Vence hoje!';
+  if(dias === 1) return 'Vence amanhã!';
+  return `${dias} dias restantes`;
+}
+
+function formatDate(str) {
+  const [y,m,d] = str.split('-');
+  return `${d}/${m}/${y}`;
+}
+
+function cadastrar() {
+  const nome = document.getElementById('c-nome').value.trim();
+  const venc = document.getElementById('c-venc').value;
+  const sintomas = document.getElementById('c-sintomas').value.trim();
+  const categoria = document.getElementById('c-categoria').value;
+  const id = document.getElementById('c-id').value;
+  
+  if(!nome || !venc || !sintomas || !categoria) { alert('Preencha todos os campos obrigatórios (*)'); return; }
+
+  if(id) {
+    // EDITAR medicamento existente
+    const med = data.meds.find(m => m.id == id);
+    if(med) {
+      med.nome = nome;
+      med.categoria = categoria;
+      med.codigo = document.getElementById('c-codigo').value.trim();
+      med.lote = document.getElementById('c-lote').value.trim();
+      med.venc = venc;
+      med.qtd = document.getElementById('c-qtd').value || '';
+      med.sintomas = sintomas.toLowerCase();
+      med.bonificado = document.getElementById('c-bonificado').checked || false;
+      med.queima = document.getElementById('c-queima').checked || false;
+      alert('✓ Medicamento atualizado com sucesso!');
+    }
+    cancelarEdicao();
+  } else {
+    // NOVO medicamento
+    data.meds.push({
+      id: Date.now(),
+      nome,
+      categoria,
+      codigo: document.getElementById('c-codigo').value.trim(),
+      lote: document.getElementById('c-lote').value.trim(),
+      venc,
+      qtd: document.getElementById('c-qtd').value || '',
+      sintomas: sintomas.toLowerCase(),
+      bonificado: document.getElementById('c-bonificado').checked || false,
+      queima: document.getElementById('c-queima').checked || false
+    });
+    alert('✓ Medicamento cadastrado com sucesso!');
+  }
+  
+  save();
+  limparFormulario();
+  buscar();
+  renderLista();
+}
+
+function limparFormulario() {
+  ['c-id','c-nome','c-codigo','c-categoria','c-lote','c-venc','c-qtd','c-sintomas','c-bonificado','c-queima'].forEach(id => {
+    const elem = document.getElementById(id);
+    if(elem.type === 'checkbox') elem.checked = false;
+    else elem.value = '';
+  });
+}
+
+function cancelarEdicao() {
+  limparFormulario();
+  document.getElementById('btn-cadastro').textContent = 'Cadastrar medicamento';
+  document.getElementById('btn-cadastro').style.display = 'block';
+  document.getElementById('btn-cancelar').style.display = 'none';
+}
+
+function editarMedicamento(id) {
+  const med = data.meds.find(m => m.id == id);
+  if(!med) return;
+  
+  document.getElementById('c-id').value = id;
+  document.getElementById('c-nome').value = med.nome;
+  document.getElementById('c-categoria').value = med.categoria || '';
+  document.getElementById('c-codigo').value = med.codigo || '';
+  document.getElementById('c-lote').value = med.lote || '';
+  document.getElementById('c-venc').value = med.venc;
+  document.getElementById('c-qtd').value = med.qtd || '';
+  document.getElementById('c-sintomas').value = med.sintomas;
+  document.getElementById('c-bonificado').checked = med.bonificado || false;
+  document.getElementById('c-queima').checked = med.queima || false;
+  
+  document.getElementById('btn-cadastro').textContent = '💾 Salvar alterações';
+  document.getElementById('btn-cancelar').style.display = 'block';
+  
+  goTo('cadastro', document.querySelector('[onclick*="cadastro"]'));
+  document.getElementById('c-nome').focus();
+}
+
+function remover(id) {
+  if(!confirm('Remover este medicamento?')) return;
+  data.meds = data.meds.filter(m => m.id !== id);
+  save(); renderLista();
+}
+
+function abrirVendas(id) {
+  const med = data.meds.find(m => m.id == id);
+  if(!med) return;
+  
+  document.getElementById('vendas-subtitle').textContent = `Medicamento: ${med.nome}`;
+  document.getElementById('vendas-estoque-atual').textContent = med.qtd || 0;
+  document.getElementById('vendas-qtd').value = '';
+  document.getElementById('vendas-qtd').dataset.medId = id;
+  
+  document.getElementById('vendas-modal').classList.add('active');
+  document.getElementById('vendas-qtd').focus();
+}
+
+function confirmarVenda() {
+  const medId = parseInt(document.getElementById('vendas-qtd').dataset.medId);
+  const qtdVendida = parseInt(document.getElementById('vendas-qtd').value);
+  
+  if(!qtdVendida || qtdVendida <= 0) {
+    alert('⚠️ Digite uma quantidade válida!');
+    return;
+  }
+  
+  const med = data.meds.find(m => m.id == medId);
+  if(!med) return;
+  
+  const estoqueAtual = parseInt(med.qtd) || 0;
+  
+  if(qtdVendida > estoqueAtual) {
+    alert(`⚠️ Quantidade indisponível! Estoque: ${estoqueAtual} un.`);
+    return;
+  }
+  
+  med.qtd = estoqueAtual - qtdVendida;
+  save();
+  cancelarVenda();
+  buscar();
+  renderLista();
+  alert(`✓ Venda registrada! Estoque atualizado para ${med.qtd} un.`);
+}
+
+function cancelarVenda() {
+  document.getElementById('vendas-modal').classList.remove('active');
+  document.getElementById('vendas-qtd').value = '';
+}
+
+function buscar() {
+  const q = document.getElementById('search-input').value.trim().toLowerCase();
+  const cont = document.getElementById('search-results');
+  const hint = document.getElementById('search-hint');
+  const alertBar = document.getElementById('alert-bar-consulta');
+
+  // alerta geral de críticos
+  const criticos = data.meds.filter(m => { const d = diasParaVencer(m.venc); return d >= 0 && d <= 60; });
+  if(criticos.length) {
+    alertBar.style.display = 'block';
+    alertBar.textContent = `⚠ ${criticos.length} medicamento(s) com vencimento crítico (menos de 60 dias). Priorize a venda!`;
+  } else {
+    alertBar.style.display = 'none';
+  }
+
+  if(!q) {
+    // sem busca: mostra os mais críticos
+    const proximos = data.meds
+      .filter(m => { const d = diasParaVencer(m.venc); return d >= 0 && d <= 180; })
+      .sort((a,b) => diasParaVencer(a.venc) - diasParaVencer(b.venc));
+
+    if(!proximos.length) {
+      hint.textContent = 'Nenhum medicamento com vencimento nos próximos 180 dias.';
+      cont.innerHTML = '<div class="empty"><div class="empty-icon">✅</div>Tudo em dia! Nenhum medicamento com vencimento próximo.</div>';
+      return;
+    }
+    hint.textContent = `Mostrando ${proximos.length} medicamento(s) com vencimento nos próximos 180 dias — ordenado por urgência`;
+    cont.innerHTML = `<div class="results-grid">${proximos.map(cardHTML).join('')}</div>`;
+    return;
+  }
+
+  const resultado = data.meds.filter(m => {
+    const dias = diasParaVencer(m.venc);
+    if(dias > 180 || dias < 0) return false;
+    return m.nome.toLowerCase().includes(q) || m.sintomas.toLowerCase().includes(q);
+  }).sort((a,b) => diasParaVencer(a.venc) - diasParaVencer(b.venc));
+
+  if(!resultado.length) {
+    hint.textContent = `Nenhum resultado para "${q}" com vencimento nos próximos 180 dias.`;
+    cont.innerHTML = `<div class="empty"><div class="empty-icon">🔍</div>Nenhum medicamento encontrado para "${q}".<br><span style="font-size:12px;">Tente outro sintoma ou nome.</span></div>`;
+    return;
+  }
+
+  hint.textContent = `${resultado.length} medicamento(s) encontrado(s) para "${q}"`;
+  cont.innerHTML = `<div class="results-grid">${resultado.map(cardHTML).join('')}</div>`;
+}
+
+function getUrgencyClass(dias) {
+  if(dias < 60) return 'urgency-critical';  // Menos de 60 dias - VERMELHO
+  if(dias < 90) return 'urgency-warning';   // Menos de 90 dias - AMARELO
+  return 'urgency-normal';                  // 90+ dias - VERDE
+}
+
+function cardHTML(m) {
+  const dias = diasParaVencer(m.venc);
+  const urgencyClass = getUrgencyClass(dias);
+  const status = statusDias(dias);
+  const sintTags = m.sintomas.split(',').map(s => `<span class="tag-pill">${s.trim()}</span>`).join('');
+  const statusTags = `${m.bonificado ? '<span class="tag-bonificado">BONIFICADO</span>' : ''}${m.queima ? '<span class="tag-queima">QUEIMA DE ESTOQUE</span>' : ''}`;
+  const categoria = m.categoria ? `<span class="tag-${m.categoria.toLowerCase()}">${m.categoria}</span>` : '';
+  const codigo = m.codigo ? `<div style="font-size:10px;color:var(--text3);margin-bottom:2px;">Código: ${m.codigo}</div>` : '';
+  
+  return `<div class="med-card ${urgencyClass}">
+    <div class="med-name">${m.nome}</div>
+    ${codigo}
+    <div style="margin-bottom:8px;">${categoria}${statusTags}</div>
+    <div class="med-sintomas">${sintTags}</div>
+    <div class="med-meta">
+      <div>
+        <div class="med-lote">${m.lote ? 'Lote: ' + m.lote : ''}${m.qtd ? (m.lote?' · ':'') + 'Estoque: ' + m.qtd + ' un.' : ''}</div>
+        <div class="med-venc">Vence em ${formatDate(m.venc)}</div>
+      </div>
+      <div style="text-align:right;">
+        <div class="med-dias ${status}">${labelDias(dias)}</div>
+        <div style="display:flex; gap:4px; margin-top:6px; flex-direction:column;">
+          <button class="btn btn-sm" onclick="abrirVendas(${m.id})" style="font-size:11px; padding:4px 8px;">📊 Venda</button>
+          <button class="btn btn-sm" onclick="editarMedicamento(${m.id})" style="font-size:11px; padding:4px 8px;">✏️ Editar</button>
+        </div>
+      </div>
+    </div>
+  </div>`;
+}
+
+// relógio
+function updateClock() {
+  document.getElementById('clock').textContent = new Date().toLocaleString('pt-BR', {weekday:'short', day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit'});
+}
+updateClock(); setInterval(updateClock, 60000);
+
+function exportarDados() {
+  const dataStr = JSON.stringify(data, null, 2);
+  const dataBlob = new Blob([dataStr], {type: 'application/json'});
+  const url = URL.createObjectURL(dataBlob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `medicamentos-backup-${new Date().toISOString().split('T')[0]}.json`;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+  alert('✓ Backup exportado com sucesso!');
+}
+
+function importarDados() {
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = '.json';
+  input.onchange = (e) => {
+    const file = e.target.files[0];
+    if(!file) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const imported = JSON.parse(event.target.result);
+        if(!imported.meds || !Array.isArray(imported.meds)) {
+          alert('❌ Arquivo inválido! Certifique-se que é um backup válido.');
+          return;
+        }
+        if(confirm('⚠️ Isso irá substituir todos os medicamentos atuais. Deseja continuar?')) {
+          data = imported;
+          save();
+          renderLista();
+          buscar();
+          alert('✓ Dados importados com sucesso!');
+        }
+      } catch(e) {
+        alert('❌ Erro ao importar arquivo: ' + e.message);
+      }
+    };
+    reader.readAsText(file);
+  };
+  input.click();
+}
+
+function limparDados() {
+  if(confirm('⚠️ CUIDADO! Isso irá deletar TODOS os medicamentos cadastrados. Deseja continuar?')) {
+    if(confirm('Tem certeza? Esta ação não pode ser desfeita!')) {
+      data.meds = [];
+      save();
+      renderLista();
+      buscar();
+      alert('✓ Todos os dados foram removidos.');
+    }
+  }
+}
+
+load();
+buscar();
+</script>
+</body>
+</html>
