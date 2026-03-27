@@ -619,7 +619,7 @@ function buscar() {
   const criticos = data.meds.filter(m => { const d = diasParaVencer(m.venc); return d >= 0 && d <= 60; });
   if(criticos.length) {
     alertBar.style.display = 'block';
-    alertBar.textContent = `⚠ ${criticos.length} medicamento(s) com vencimento crítico (menos de 60 dias). Priorize a venda!`;
+    alertBar.textContent = `⚠ ${criticos.length} PRODUTOS COM VENCIMENTO CRÍTICO (MENOS DE 60 DIAS). PRIORIZE A VENDA!`;
   } else {
     alertBar.style.display = 'none';
   }
