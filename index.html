@@ -5,6 +5,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>Monitor de Vencimentos — Drogaria Primus</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;1,400&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<!-- Firebase -->
+<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-database.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-auth.js"></script>
 <style>
   :root {
     --bg: #f5f4f0;
@@ -395,25 +399,77 @@ function renderLista() {
   </table>`;
 }
 
+// ========== FIREBASE CONFIG ==========
+const firebaseConfig = {
+  apiKey: "AIzaSyC1TpF7YZKmDdP8tejfyoOfOMgex2oieHM",
+  authDomain: "prevencidos-be60f.firebaseapp.com",
+  projectId: "prevencidos-be60f",
+  storageBucket: "prevencidos-be60f.appspot.com",
+  messagingSenderId: "283640740918",
+  appId: "1:283640740918:web:ef19397e2870840e92ec97"
+};
+
+let db = null;
+let firebaseReady = false;
+
+function initFirebase() {
+  try {
+    const app = firebase.initializeApp(firebaseConfig);
+    db = firebase.database();
+    firebaseReady = true;
+    console.log('✓ Firebase inicializado');
+    
+    firebase.auth().signInAnonymously().catch(err => {
+      console.log('Auth:', err);
+    });
+    
+    syncFromFirebase();
+  } catch(e) {
+    console.error('Erro Firebase:', e);
+    firebaseReady = false;
+  }
+}
+
+function syncFromFirebase() {
+  if(!firebaseReady || !db) return;
+  
+  db.ref('medicamentos').on('value', (snapshot) => {
+    const firebaseData = snapshot.val();
+    if(firebaseData) {
+      data.meds = Array.isArray(firebaseData) ? firebaseData : Object.values(firebaseData);
+      console.log('✓ Sincronizado');
+      buscar();
+      renderLista();
+    }
+  });
+}
+
+function saveToFirebase() {
+  if(!firebaseReady || !db) return;
+  
+  db.ref('medicamentos').set(data.meds).catch(err => {
+    console.error('Erro Firebase:', err);
+  });
+}
+
 function load() {
   try { data = JSON.parse(localStorage.getItem('primus-vencimentos') || 'null') || { meds: [] }; }
   catch(e) { data = { meds: [] }; }
   if(!data.meds) data.meds = [];
   
-  // Verificar se estava autenticado
   if(localStorage.getItem('primus-auth') === 'true') {
     authenticated = true;
     updateAuthUI();
   }
   
-  // Firebase desativado temporariamente
-  // initFirebase();
+  // Inicializar Firebase
+  initFirebase();
 }
 
 function save() { 
   try {
     localStorage.setItem('primus-vencimentos', JSON.stringify(data));
-    // saveToFirebase(); // Desativado temporariamente
+    saveToFirebase();
     showSaveIndicator();
   } catch(e) {
     console.error('Erro ao salvar:', e);
@@ -619,7 +675,7 @@ function buscar() {
   const criticos = data.meds.filter(m => { const d = diasParaVencer(m.venc); return d >= 0 && d <= 60; });
   if(criticos.length) {
     alertBar.style.display = 'block';
-    alertBar.textContent = `⚠ ${criticos.length} PRODUTOS COM VENCIMENTO CRÍTICO (MENOS DE 60 DIAS). PRIORIZE A VENDA!`;
+    alertBar.textContent = `⚠ ${criticos.length} medicamento(s) com vencimento crítico (menos de 60 dias). Priorize a venda!`;
   } else {
     alertBar.style.display = 'none';
   }
