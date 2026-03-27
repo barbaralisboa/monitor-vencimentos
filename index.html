@@ -157,20 +157,7 @@
 <div class="topbar">
   <div class="logo">Drogaria Primus <span>/ Monitor de Vencimentos</span></div>
   <div style="display:flex; align-items:center; gap:12px;">
-    <div id="auth-status" class="lock-badge" style="display:none;">🔒 Autenticado</div>
-    <button id="logout-btn" class="btn btn-sm" onclick="logout()" style="display:none;">Sair</button>
     <div class="topbar-right" id="clock"></div>
-  </div>
-</div>
-
-<!-- MODAL LOGIN -->
-<div class="modal-overlay" id="login-modal">
-  <div class="modal-content">
-    <div class="modal-title">🔐 Acesso Restrito</div>
-    <div class="modal-subtitle">Digite a senha para editar medicamentos</div>
-    <div class="modal-error" id="login-error"></div>
-    <input type="password" id="login-password" class="modal-input" placeholder="Digite a senha..." autocomplete="off" onkeypress="if(event.key==='Enter') login()"/>
-    <button class="modal-btn" onclick="login()">Entrar</button>
   </div>
 </div>
 
@@ -201,7 +188,6 @@
     <button class="nav-item active" onclick="goTo('consulta', this)"><span class="nav-icon">🔍</span> Consulta</button>
     <div class="nav-section">Gerenciar</div>
     <button class="nav-item" onclick="goTo('cadastro', this)"><span class="nav-icon">⊕</span> Cadastrar</button>
-    <button class="nav-item" onclick="goTo('lista', this)"><span class="nav-icon">☰</span> Todos</button>
   </nav>
 
   <main class="main">
@@ -287,83 +273,12 @@
       </div>
     </div>
 
-    <!-- LISTA TODOS -->
-    <div class="page" id="page-lista">
-      <div class="page-header">
-        <h2>Todos os medicamentos</h2>
-        <p>Remova medicamentos vendidos da lista</p>
-      </div>
-
-      <div class="card">
-        <div id="lista-container"><div class="empty"><div class="empty-icon">💊</div>Nenhum medicamento cadastrado ainda.</div></div>
-      </div>
-    </div>
 
   </main>
 </div>
 
 <script>
 let data = { meds: [] };
-let authenticated = false;
-const SENHA_PADRAO = '1234'; // ALTERADA PARA SUA SENHA
-
-function isAuthenticated() {
-  return authenticated;
-}
-
-function showLoginModal() {
-  document.getElementById('login-modal').classList.add('active');
-  document.getElementById('login-password').focus();
-  document.getElementById('login-error').style.display = 'none';
-  document.getElementById('login-password').value = '';
-}
-
-function hideLoginModal() {
-  document.getElementById('login-modal').classList.remove('active');
-}
-
-function login() {
-  const senha = document.getElementById('login-password').value;
-  const errorDiv = document.getElementById('login-error');
-  
-  if(senha === SENHA_PADRAO) {
-    authenticated = true;
-    localStorage.setItem('primus-auth', 'true');
-    hideLoginModal();
-    updateAuthUI();
-    
-    // Redirecionar para cadastro se veio do botão
-    if(sessionStorage.getItem('redirectToCadastro')) {
-      sessionStorage.removeItem('redirectToCadastro');
-      goTo('cadastro', document.querySelector('[onclick*="cadastro"]'));
-    }
-  } else {
-    errorDiv.textContent = '❌ Senha incorreta!';
-    errorDiv.style.display = 'block';
-    document.getElementById('login-password').value = '';
-  }
-}
-
-function logout() {
-  authenticated = false;
-  localStorage.removeItem('primus-auth');
-  updateAuthUI();
-  goTo('consulta', document.querySelector('.nav-item'));
-  alert('Você foi desconectado.');
-}
-
-function updateAuthUI() {
-  const authStatus = document.getElementById('auth-status');
-  const logoutBtn = document.getElementById('logout-btn');
-  
-  if(authenticated) {
-    authStatus.style.display = 'inline-flex';
-    logoutBtn.style.display = 'block';
-  } else {
-    authStatus.style.display = 'none';
-    logoutBtn.style.display = 'none';
-  }
-}
 
 
 function renderLista() {
@@ -456,11 +371,6 @@ function load() {
   catch(e) { data = { meds: [] }; }
   if(!data.meds) data.meds = [];
   
-  if(localStorage.getItem('primus-auth') === 'true') {
-    authenticated = true;
-    updateAuthUI();
-  }
-  
   // Inicializar Firebase após 1 segundo (esperar scripts carregarem)
   setTimeout(() => initFirebase(), 1000);
 }
@@ -489,18 +399,11 @@ style.textContent = '@keyframes slideIn { from { opacity:0; transform:translateY
 document.head.appendChild(style);
 
 function goTo(page, btn) {
-  // Verificar se precisa autenticação para acessar cadastro
-  if(page === 'cadastro' && !isAuthenticated()) {
-    showLoginModal();
-    return;
-  }
-  
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
   document.getElementById('page-' + page).classList.add('active');
   if(btn) btn.classList.add('active');
   if(page === 'consulta') buscar();
-  if(page === 'lista') renderLista();
 }
 
 function diasParaVencer(dataVenc) {
@@ -652,11 +555,19 @@ function confirmarVenda() {
   }
   
   med.qtd = estoqueAtual - qtdVendida;
+  
+  // Se estoque chegou a 0, remove o medicamento
+  if(med.qtd <= 0) {
+    data.meds = data.meds.filter(m => m.id !== medId);
+    alert(`✓ Última unidade vendida! ${med.nome} removido da lista.`);
+  } else {
+    alert(`✓ Venda registrada! Estoque atualizado para ${med.qtd} un.`);
+  }
+  
   save();
   cancelarVenda();
   buscar();
   renderLista();
-  alert(`✓ Venda registrada! Estoque atualizado para ${med.qtd} un.`);
 }
 
 function cancelarVenda() {
@@ -741,6 +652,7 @@ function cardHTML(m) {
         <div style="display:flex; gap:4px; margin-top:6px; flex-direction:column;">
           <button class="btn btn-sm" onclick="abrirVendas(${m.id})" style="font-size:11px; padding:4px 8px;">📊 Venda</button>
           <button class="btn btn-sm" onclick="editarMedicamento(${m.id})" style="font-size:11px; padding:4px 8px;">✏️ Editar</button>
+          <button class="btn btn-sm btn-danger" onclick="remover(${m.id})" style="font-size:11px; padding:4px 8px;">🗑️ Apagar</button>
         </div>
       </div>
     </div>
