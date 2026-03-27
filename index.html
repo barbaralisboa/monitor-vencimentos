@@ -8,7 +8,6 @@
 <!-- Firebase Compat -->
 <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
 <style>
   :root {
     --bg: #f5f4f0;
@@ -413,7 +412,6 @@ let db = null;
 let firebaseReady = false;
 
 function initFirebase() {
-  // Aguardar Firebase estar disponível
   if(typeof firebase === 'undefined') {
     console.log('⏳ Aguardando Firebase...');
     setTimeout(() => initFirebase(), 500);
@@ -425,8 +423,6 @@ function initFirebase() {
     db = firebase.database();
     firebaseReady = true;
     console.log('✓ Firebase OK');
-    
-    firebase.auth().signInAnonymously();
     syncFromFirebase();
   } catch(e) {
     console.error('Firebase erro:', e);
