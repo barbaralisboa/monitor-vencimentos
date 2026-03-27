@@ -413,6 +413,13 @@ let db = null;
 let firebaseReady = false;
 
 function initFirebase() {
+  // Aguardar Firebase estar disponível
+  if(typeof firebase === 'undefined') {
+    console.log('⏳ Aguardando Firebase...');
+    setTimeout(() => initFirebase(), 500);
+    return;
+  }
+
   try {
     const app = firebase.initializeApp(firebaseConfig);
     db = firebase.database();
@@ -462,8 +469,8 @@ function load() {
     updateAuthUI();
   }
   
-  // Inicializar Firebase
-  initFirebase();
+  // Inicializar Firebase após 1 segundo (esperar scripts carregarem)
+  setTimeout(() => initFirebase(), 1000);
 }
 
 function save() { 
