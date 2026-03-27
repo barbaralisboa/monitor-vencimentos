@@ -72,7 +72,7 @@
   .form-actions { margin-top: 1rem; display: flex; gap: 8px; }
 
   /* SEARCH */
-  .search-wrap { position: relative; margin-bottom: 1.5rem; }
+  .search-wrap { position: sticky; top: 0; z-index: 50; background: var(--bg); padding: 1rem 0; margin-bottom: 1.5rem; }
   .search-wrap input { padding: 12px 16px 12px 44px; font-size: 15px; border-radius: var(--radius); border: 1px solid var(--border2); background: var(--surface); width: 100%; }
   .search-wrap input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(26,25,23,0.06); }
   .search-icon { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); font-size: 18px; color: var(--text3); pointer-events: none; }
@@ -130,7 +130,7 @@
   .med-card.urgency-warning { background: #fff5e6; border-left-color: #e89f20; }
   .med-card.urgency-normal { background: #e6f5e6; border-left-color: #4a9d2c; }
 
-  .alert-bar { background: var(--yellow-bg); border: 1px solid var(--yellow-border); border-radius: var(--radius-sm); padding: 10px 14px; font-size: 13px; color: var(--yellow-text); margin-bottom: 1rem; display: none; }
+  .alert-bar { background: var(--yellow-bg); border: 1px solid var(--yellow-border); border-radius: var(--radius-sm); padding: 10px 14px; font-size: 13px; color: var(--yellow-text); margin-bottom: 1rem; display: none; position: sticky; top: 0; z-index: 49; }
 
   @keyframes slideIn { 
     from { opacity: 0; transform: translateY(20px); } 
@@ -589,27 +589,27 @@ function buscar() {
   if(!q) {
     // sem busca: mostra os mais críticos
     const proximos = data.meds
-      .filter(m => { const d = diasParaVencer(m.venc); return d >= 0 && d <= 365; })
+      .filter(m => { const d = diasParaVencer(m.venc); return d >= 0 && d <= 1095; })
       .sort((a,b) => diasParaVencer(a.venc) - diasParaVencer(b.venc));
 
     if(!proximos.length) {
-      hint.textContent = 'Nenhum medicamento com vencimento nos próximos 365 dias.';
+      hint.textContent = 'Nenhum medicamento com vencimento nos próximos 3 anos.';
       cont.innerHTML = '<div class="empty"><div class="empty-icon">✅</div>Tudo em dia! Nenhum medicamento com vencimento próximo.</div>';
       return;
     }
-    hint.textContent = `Mostrando ${proximos.length} medicamento(s) com vencimento nos próximos 365 dias — ordenado por urgência`;
+    hint.textContent = `Mostrando ${proximos.length} medicamento(s) com vencimento nos próximos 3 anos — ordenado por urgência`;
     cont.innerHTML = `<div class="results-grid">${proximos.map(cardHTML).join('')}</div>`;
     return;
   }
 
   const resultado = data.meds.filter(m => {
     const dias = diasParaVencer(m.venc);
-    if(dias > 180 || dias < 0) return false;
+    if(dias > 1095 || dias < 0) return false;
     return m.nome.toLowerCase().includes(q) || m.sintomas.toLowerCase().includes(q);
   }).sort((a,b) => diasParaVencer(a.venc) - diasParaVencer(b.venc));
 
   if(!resultado.length) {
-    hint.textContent = `Nenhum resultado para "${q}" com vencimento nos próximos 180 dias.`;
+    hint.textContent = `Nenhum resultado para "${q}" com vencimento nos próximos 3 anos.`;
     cont.innerHTML = `<div class="empty"><div class="empty-icon">🔍</div>Nenhum medicamento encontrado para "${q}".<br><span style="font-size:12px;">Tente outro sintoma ou nome.</span></div>`;
     return;
   }
