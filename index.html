@@ -391,7 +391,6 @@ function renderLista() {
     }).join('')}</tbody>
   </table>`;
 }
-}
 
 function load() {
   try { data = JSON.parse(localStorage.getItem('primus-vencimentos') || 'null') || { meds: [] }; }
